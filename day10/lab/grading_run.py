@@ -47,8 +47,17 @@ def main() -> int:
     collection_name = os.environ.get("CHROMA_COLLECTION", "day10_kb")
     model_name = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
+    class PyViSentenceTransformerEmbeddingFunction(embedding_functions.SentenceTransformerEmbeddingFunction):
+        def __call__(self, input):
+            try:
+                from pyvi import ViTokenizer
+                segmented = [ViTokenizer.tokenize(doc) for doc in input]
+            except ImportError:
+                segmented = input
+            return super().__call__(segmented)
+
     client = chromadb.PersistentClient(path=db_path)
-    emb = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model_name)
+    emb = PyViSentenceTransformerEmbeddingFunction(model_name=model_name)
     col = client.get_collection(name=collection_name, embedding_function=emb)
 
     out = Path(args.out)

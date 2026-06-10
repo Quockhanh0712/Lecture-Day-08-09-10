@@ -136,6 +136,15 @@ def cmd_embed_internal(cleaned_csv: Path, *, run_id: str, log) -> bool:
         log("ERROR: chromadb chưa cài. pip install -r requirements.txt")
         return False
 
+    class PyViSentenceTransformerEmbeddingFunction(embedding_functions.SentenceTransformerEmbeddingFunction):
+        def __call__(self, input):
+            try:
+                from pyvi import ViTokenizer
+                segmented = [ViTokenizer.tokenize(doc) for doc in input]
+            except ImportError:
+                segmented = input
+            return super().__call__(segmented)
+
     db_path = os.environ.get("CHROMA_DB_PATH", str(ROOT / "chroma_db"))
     collection_name = os.environ.get("CHROMA_COLLECTION", "day10_kb")
     model_name = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
@@ -148,7 +157,7 @@ def cmd_embed_internal(cleaned_csv: Path, *, run_id: str, log) -> bool:
         return True
 
     client = chromadb.PersistentClient(path=db_path)
-    emb = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=model_name)
+    emb = PyViSentenceTransformerEmbeddingFunction(model_name=model_name)
     col = client.get_or_create_collection(name=collection_name, embedding_function=emb)
 
     ids = [r["chunk_id"] for r in rows]
